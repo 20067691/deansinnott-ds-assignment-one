@@ -11,4 +11,6 @@ export type CraftBeer = {
   rating: number;           // Average rating from users out of 5
 };
 
+
+
  

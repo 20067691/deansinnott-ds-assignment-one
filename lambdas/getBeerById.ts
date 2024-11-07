@@ -1,6 +1,6 @@
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, QueryCommandInput } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 
 const ddbDocClient = createDDbDocClient();
 
@@ -8,69 +8,77 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
   try {
     console.log("[EVENT]", JSON.stringify(event));
     const parameters = event?.pathParameters;
-    const beerId = parameters?.beerId ? parseInt(parameters.beerId) : undefined;
+    const brewery = parameters?.brewery;
+    const name = event.queryStringParameters?.name;
+    console.log(name)
 
-    if (!beerId) {
+    if (!brewery) {
       return {
         statusCode: 404,
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ Message: "Missing beer Id" }),
+        body: JSON.stringify({ Message: "Missing brewery parameter" }),
       };
     }
 
-    // Fetch the craft beer details
-    const commandOutput = await ddbDocClient.send(
-      new GetCommand({
-        TableName: process.env.TABLE_NAME,
-        Key: { id: beerId },
-      })
-    );
-    console.log("GetCommand response: ", commandOutput);
-    if (!commandOutput.Item) {
-      return {
-        statusCode: 404,
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ Message: "Invalid beer Id" }),
-      };
-    }
-
-    const body: { data: any } = {
-      data: commandOutput.Item,
-    };
-
-    // Fetch brewery information if the query parameter `brewery` is set to "true"
-    const queryParams = event.queryStringParameters || {};
-
-    if (queryParams.brewery === "true") {
-      const breweryCommandInput: QueryCommandInput = {
-        TableName: process.env.BREWERY_TABLE_NAME, // Update to reference your brewery table name in environment
-        KeyConditionExpression: "beerId = :b",
-        ExpressionAttributeValues: {
-          ":b": beerId,
-        },
-      };
-
-      const breweryCommandOutput = await ddbDocClient.send(
-        new QueryCommand(breweryCommandInput)
+    // Check if `name` is provided to fetch a specific beer
+    if (name) {
+      // Get a specific beer from the brewery
+      const commandOutput = await ddbDocClient.send(
+        new GetCommand({
+          TableName: process.env.TABLE_NAME,
+          Key: { brewery, name },
+        })
       );
 
-      if (breweryCommandOutput.Items) {
-        body.data.brewery = breweryCommandOutput.Items;
+      if (!commandOutput.Item) {
+        return {
+          statusCode: 404,
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ Message: "Beer not found for the provided brewery and name" }),
+        };
       }
-    }
 
-    // Return response
-    return {
-      statusCode: 200,
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(body),
-    };
+      return {
+        statusCode: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ data: commandOutput.Item }),
+      };
+    } else {
+      // Query all beers for the specified brewery
+      const commandOutput = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: process.env.TABLE_NAME,
+          KeyConditionExpression: "brewery = :b",
+          ExpressionAttributeValues: {
+            ":b": brewery,
+          },
+        })
+      );
+
+      if (!commandOutput.Items || commandOutput.Items.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ Message: "No beers found for the provided brewery" }),
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ data: commandOutput.Items }),
+      };
+    }
   } catch (error: any) {
     console.log(JSON.stringify(error));
     return {

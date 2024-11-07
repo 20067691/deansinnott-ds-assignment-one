@@ -16,7 +16,8 @@ export class RestAPIStack extends cdk.Stack {
 // Craft Beer Table
 const beersTable = new dynamodb.Table(this, "BeersTable", {
   billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-  partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
+  partitionKey: { name: "brewery", type: dynamodb.AttributeType.STRING },
+  sortKey: { name: "name", type: dynamodb.AttributeType.STRING},
   removalPolicy: cdk.RemovalPolicy.DESTROY,
   tableName: "Beers",
 });
@@ -68,7 +69,7 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
       },
     });
         
-        //Delete Movie Function 
+        //Delete Beer Function 
         const deleteBeerFn = new lambdanode.NodejsFunction(this, "DeleteBeerFn", {
           architecture: lambda.Architecture.ARM_64,
           runtime: lambda.Runtime.NODEJS_16_X,
@@ -132,7 +133,7 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
       new apig.LambdaIntegration(addBeerFn, { proxy: true })
     );
     
-    const beerEndpoint = beersEndpoint.addResource("{beerId}");
+    const beerEndpoint = beersEndpoint.addResource("{brewery}");
     beerEndpoint.addMethod(
       "GET",
       new apig.LambdaIntegration(getBeerByIdFn, { proxy: true })
