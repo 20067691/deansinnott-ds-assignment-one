@@ -81,6 +81,20 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
             REGION: "eu-west-1",
           },
         });
+
+      
+      //     Update Beer Lambda Function
+        const updateBeerFn = new lambdanode.NodejsFunction(this, "UpdateBeerFn", {
+          architecture: lambda.Architecture.ARM_64,
+          runtime: lambda.Runtime.NODEJS_16_X,
+          entry: `${__dirname}/../lambdas/updateBeer.ts`,
+          timeout: cdk.Duration.seconds(10),
+          memorySize: 128,
+          environment: {
+            TABLE_NAME: beersTable.tableName,
+            REGION: "eu-west-1",
+          },
+        });
         
 
 
@@ -97,7 +111,7 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
             physicalResourceId: custom.PhysicalResourceId.of("moviesddbInitData"), //.of(Date.now().toString()),
           },
           policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
-            resources: [beersTable.tableArn],  // Includes movie cast
+            resources: [beersTable.tableArn],  
           }),
         });
         
@@ -106,6 +120,7 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
         beersTable.grantReadData(getAllBeersFn)
         beersTable.grantReadWriteData(addBeerFn)
         beersTable.grantReadWriteData(deleteBeerFn)
+        beersTable.grantReadWriteData(updateBeerFn);
         
         // REST API 
     const api = new apig.RestApi(this, "RestAPI", {
@@ -132,6 +147,16 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
       "POST",
       new apig.LambdaIntegration(addBeerFn, { proxy: true })
     );
+
+    beersEndpoint.addMethod(
+      "DELETE",
+      new apig.LambdaIntegration(deleteBeerFn, { proxy: true })
+    );
+
+    beersEndpoint.addMethod(
+      "PUT",
+      new apig.LambdaIntegration(updateBeerFn, { proxy: true })
+    );
     
     const beerEndpoint = beersEndpoint.addResource("{brewery}");
     beerEndpoint.addMethod(
@@ -139,10 +164,7 @@ const beersTable = new dynamodb.Table(this, "BeersTable", {
       new apig.LambdaIntegration(getBeerByIdFn, { proxy: true })
     );
     
-    beerEndpoint.addMethod(
-      "DELETE",
-      new apig.LambdaIntegration(deleteBeerFn, { proxy: true })
-    );
+
 
       }
     }
