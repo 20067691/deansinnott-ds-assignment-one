@@ -27,15 +27,6 @@ export class RestAPIStack extends Construct {
       tableName: "Beers",
     });
 
-    // // Brewery Details Table (if you need a separate table for breweries)
-    // const breweriesTable = new dynamodb.Table(this, "BreweriesTable", {
-    //   billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-    //   partitionKey: { name: "breweryId", type: dynamodb.AttributeType.NUMBER },
-    //   sortKey: { name: "breweryName", type: dynamodb.AttributeType.STRING },
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
-    //   tableName: "Breweries",
-    // });;
-
 
     // Functions 
     const getBeerByIdFn = new lambdanode.NodejsFunction(this, "GetBeerByIdFn", {
@@ -74,7 +65,7 @@ export class RestAPIStack extends Construct {
       },
     });
 
-    //Delete Beer Function 
+    // Delete Beer Function 
     const deleteBeerFn = new lambdanode.NodejsFunction(this, "DeleteBeerFn", {
       architecture: lambda.Architecture.ARM_64,
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -88,7 +79,7 @@ export class RestAPIStack extends Construct {
     });
 
 
-    //     Update Beer Lambda Function
+    // Update Beer Function
     const updateBeerFn = new lambdanode.NodejsFunction(this, "UpdateBeerFn", {
       architecture: lambda.Architecture.ARM_64,
       runtime: lambda.Runtime.NODEJS_16_X,
@@ -113,7 +104,7 @@ export class RestAPIStack extends Construct {
             [beersTable.tableName]: generateBatch(craftBeers),
           },
         },
-        physicalResourceId: custom.PhysicalResourceId.of("moviesddbInitData"), //.of(Date.now().toString()),
+        physicalResourceId: custom.PhysicalResourceId.of("beersddbInitData"), //.of(Date.now().toString()),
       },
       policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
         resources: [beersTable.tableArn],
@@ -141,6 +132,34 @@ export class RestAPIStack extends Construct {
       },
     });
 
+    const appCommonFnProps = {
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "handler",
+      environment: {
+        USER_POOL_ID: props.userPoolId,
+        CLIENT_ID: props.userPoolClientId,
+        REGION: cdk.Aws.REGION,
+      },
+    };
+
+    const authorizerFn = new lambdanode.NodejsFunction(this, "AuthorizerFn", {
+      ...appCommonFnProps,
+      entry: "./lambdas/auth/authorizer.ts",
+    });
+
+    const requestAuthorizer = new apig.RequestAuthorizer(
+      this,
+      "RequestAuthorizer",
+      {
+        identitySources: [apig.IdentitySource.header("cookie")],
+        handler: authorizerFn,
+        resultsCacheTtl: cdk.Duration.minutes(0),
+      }
+    );
+
     const beersEndpoint = api.root.addResource("beers");
 
     beersEndpoint.addMethod(
@@ -150,7 +169,10 @@ export class RestAPIStack extends Construct {
 
     beersEndpoint.addMethod(
       "POST",
-      new apig.LambdaIntegration(addBeerFn, { proxy: true })
+      new apig.LambdaIntegration(addBeerFn, { proxy: true }), {
+        authorizer: requestAuthorizer,
+        authorizationType: apig.AuthorizationType.CUSTOM,
+      }
     );
 
     beersEndpoint.addMethod(
@@ -160,7 +182,10 @@ export class RestAPIStack extends Construct {
 
     beersEndpoint.addMethod(
       "PUT",
-      new apig.LambdaIntegration(updateBeerFn, { proxy: true })
+      new apig.LambdaIntegration(updateBeerFn, { proxy: true }), {
+        authorizer: requestAuthorizer,
+        authorizationType: apig.AuthorizationType.CUSTOM,
+      }
     );
 
     const beerEndpoint = beersEndpoint.addResource("{brewery}");
