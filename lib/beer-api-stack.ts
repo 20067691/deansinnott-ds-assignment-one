@@ -14,9 +14,9 @@ type AppApiProps = {
   userPoolClientId: string;
 };
 
-export class RestAPIStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+export class RestAPIStack extends Construct {
+  constructor(scope: Construct, id: string, props: AppApiProps) {
+    super(scope, id);
 
     // Craft Beer Table
     const beersTable = new dynamodb.Table(this, "BeersTable", {
