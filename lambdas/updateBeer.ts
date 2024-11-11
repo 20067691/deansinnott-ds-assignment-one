@@ -4,7 +4,7 @@ import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 const ddbDocClient = createDDbDocClient();
 
-export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
+export const handler: APIGatewayProxyHandlerV2 = async (event : any, context) => {
   try {
     console.log("[EVENT]", JSON.stringify(event));
 
@@ -26,6 +26,16 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
           body: JSON.stringify({ Message: "Missing brewery or beer name in path parameters" }),
         };
       }
+
+          // Extract userId from the authorizer context (sub from JWT token)
+    const userId = event.requestContext.authorizer?.principalId;
+    if (!userId) {
+      return {
+        statusCode: 403,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "Unauthorized: Missing user information" }),
+      };
+    }
   
 
     const brewery = body.brewery
@@ -33,8 +43,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
 
     const command = new UpdateCommand({
       TableName: process.env.TABLE_NAME,
-      Key: { brewery, name },
+      Key: { 
+        brewery: brewery, 
+        name : name
+      },
       UpdateExpression: "SET #id = :id, #release_date = :release_date, #description = :description, #abv = :abv, #style = :style, #rating = :rating",
+      ConditionExpression: "createdBy = :userId", // Ensure only creator can update
       ExpressionAttributeNames: {
         "#id" : "id",
         "#release_date" : "release_date",
@@ -49,7 +63,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         ":description" : body.description,
         ":abv" : body.abv,
         ":style" : body.style,
-        ":rating" : body.rating
+        ":rating" : body.rating,
+        ":userId": userId, // This should match the `createdBy` attribute
       }
     
     });
@@ -66,6 +81,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
     };
   } catch (error) {
     console.error("Error updating item:", error);
+    if (error.name === "ConditionalCheckFailedException") {
+      return {
+        statusCode: 403,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "Unauthorized: You do not have permission to update this item" }),
+      };
+    }
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
