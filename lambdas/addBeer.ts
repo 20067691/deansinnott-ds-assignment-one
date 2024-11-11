@@ -9,10 +9,12 @@ const isValidBodyParams = ajv.compile(schema.definitions["CraftBeer"] || {});
 
 const ddbDocClient = createDDbDocClient();
 
-export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
+export const handler: APIGatewayProxyHandlerV2 = async (event: any, context) => {
   try {
     // Print Event
     console.log("[EVENT]", JSON.stringify(event));
+
+    // Parse and validate request body
     const body = event.body ? JSON.parse(event.body) : undefined;
     if (!body) {
       return {
@@ -38,11 +40,31 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
       };
     }
 
+    // Extract userId from the authorizer context (sub from JWT token)
+    const userId = event.requestContext.authorizer?.principalId;
+    if (!userId) {
+      return {
+        statusCode: 403,
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ message: "Unauthorized: Missing user information" }),
+      };
+    }
+
+        // Add userId to the item as `createdBy`
+        const newItem = {
+          ...body,
+          createdBy: userId, // Store the unique user ID as the creator
+        };
+
+
+
     // Put the item into DynamoDB
     const commandOutput = await ddbDocClient.send(
       new PutCommand({
         TableName: process.env.TABLE_NAME,
-        Item: body,
+        Item: newItem,
       })
     );
     return {

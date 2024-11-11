@@ -18,6 +18,7 @@ export const handler: APIGatewayRequestAuthorizerHandler = async (event) => {
     process.env.USER_POOL_ID,
     process.env.REGION!
   );
+  
 
   return {
     principalId: verifiedJwt ? verifiedJwt.sub!.toString() : "",
