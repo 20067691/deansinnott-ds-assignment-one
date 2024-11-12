@@ -40,6 +40,16 @@ export const craftBeers: CraftBeer[] = [
     brewery: "Tropical Hops Co.",
     style: "IPA",
     rating: 4.2,
+  },
+  {
+    id: 106,
+    name: "FRULI",
+    release_date: "2023-09-18",
+    description: "A tropical IPA infused with ripe mango flavors and hints of citrus. Balanced bitterness complements the fruitiness, making it a refreshing choice for IPA lovers.",
+    abv: 6.5,
+    brewery: "Tropical.",
+    style: "IPA",
+    rating: 4.2,
   }
   
 ];

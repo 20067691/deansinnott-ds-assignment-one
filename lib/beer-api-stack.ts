@@ -102,6 +102,7 @@ export class RestAPIStack extends Construct {
       timeout: cdk.Duration.seconds(10),
       memorySize: 128,
       environment: {
+        TABLE_NAME: beersTable.tableName,
         REGION: "eu-west-1",
       },
     });
@@ -114,8 +115,6 @@ export class RestAPIStack extends Construct {
         resources: ["*"], // AWS Translate does not support resource-level permissions, so use "*"
       })
     );
-
-
 
 
     new custom.AwsCustomResource(this, "beersddbInitData", {
@@ -139,6 +138,7 @@ export class RestAPIStack extends Construct {
     beersTable.grantReadData(getAllBeersFn)
     beersTable.grantReadWriteData(addBeerFn)
     beersTable.grantReadWriteData(deleteBeerFn)
+    beersTable.grantReadWriteData(translateTextFn)
     beersTable.grantReadWriteData(updateBeerFn);
 
     // REST API 
@@ -217,13 +217,20 @@ export class RestAPIStack extends Construct {
       new apig.LambdaIntegration(getBeerByIdFn, { proxy: true })
     );
 
-    //
-    const translationEndpoint = api.root.addResource("translate");
-
+    const beerNameEndpoint = beerEndpoint.addResource("{name}");
+    const translationEndpoint = beerNameEndpoint.addResource("translate");
+    
     translationEndpoint.addMethod(
-      "POST",
+      "GET",
       new apig.LambdaIntegration(translateTextFn, { proxy: true })
     );
+
+
+
+
+
+
+
 
 
 
