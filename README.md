@@ -36,6 +36,12 @@ https://mojoauth.com/glossary/jwt-subject/#:~:text=In%20the%20JSON%20Web%20Token
 
 Currently the translation feature allows an items name and description to be translated on request but does not include persistence. My plan would be to store translated items in a new translation table and each time a translation is requested, the sytem would check for an existing translation in the table first. (craft beer id and translated language would be the keys)
 
-###  Extra (If relevant).
+### Steps to run
 
-[ State whether you have created a multi-stack solution for this assignment or used lambda layers to speed up update deployments. Also, mention any aspect of the CDK framework __that was not covered in the lectures that you used in this assignment. ]
++ Git clone repository
++ npm install
++ cdk deploy
++ Take AppAPI URL and put into Postman URL variable, AppAuthAPI URL into AuthURL variable
++ Signup --> Confirm signup --> Signin
++ Take token from signin, and put into Postman variable
+
