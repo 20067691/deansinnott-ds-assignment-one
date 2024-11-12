@@ -8,6 +8,7 @@ import { Construct } from "constructs";
 import { generateBatch } from "../shared/util";
 import { craftBeers } from "../seed/beers";
 import * as apig from "aws-cdk-lib/aws-apigateway";
+import * as iam from "aws-cdk-lib/aws-iam";
 
 type AppApiProps = {
   userPoolId: string;
@@ -26,6 +27,7 @@ export class RestAPIStack extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       tableName: "Beers",
     });
+
 
 
     // Functions 
@@ -91,6 +93,27 @@ export class RestAPIStack extends Construct {
         REGION: "eu-west-1",
       },
     });
+
+    // Translate
+    const translateTextFn = new lambdanode.NodejsFunction(this, "TranslateTextFn", {
+      architecture: lambda.Architecture.ARM_64,
+      runtime: lambda.Runtime.NODEJS_16_X,
+      entry: `${__dirname}/../lambdas/translate.ts`,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      environment: {
+        REGION: "eu-west-1",
+      },
+    });
+
+    // Add IAM permissions for AWS Translate
+    translateTextFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["translate:TranslateText"],
+        resources: ["*"], // AWS Translate does not support resource-level permissions, so use "*"
+      })
+    );
 
 
 
@@ -170,9 +193,9 @@ export class RestAPIStack extends Construct {
     beersEndpoint.addMethod(
       "POST",
       new apig.LambdaIntegration(addBeerFn, { proxy: true }), {
-        authorizer: requestAuthorizer,
-        authorizationType: apig.AuthorizationType.CUSTOM,
-      }
+      authorizer: requestAuthorizer,
+      authorizationType: apig.AuthorizationType.CUSTOM,
+    }
     );
 
     beersEndpoint.addMethod(
@@ -183,15 +206,23 @@ export class RestAPIStack extends Construct {
     beersEndpoint.addMethod(
       "PUT",
       new apig.LambdaIntegration(updateBeerFn, { proxy: true }), {
-        authorizer: requestAuthorizer,
-        authorizationType: apig.AuthorizationType.CUSTOM,
-      }
+      authorizer: requestAuthorizer,
+      authorizationType: apig.AuthorizationType.CUSTOM,
+    }
     );
 
     const beerEndpoint = beersEndpoint.addResource("{brewery}");
     beerEndpoint.addMethod(
       "GET",
       new apig.LambdaIntegration(getBeerByIdFn, { proxy: true })
+    );
+
+    //
+    const translationEndpoint = api.root.addResource("translate");
+
+    translationEndpoint.addMethod(
+      "POST",
+      new apig.LambdaIntegration(translateTextFn, { proxy: true })
     );
 
 

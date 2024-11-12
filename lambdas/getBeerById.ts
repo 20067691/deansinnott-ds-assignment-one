@@ -50,6 +50,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
         body: JSON.stringify({ data: commandOutput.Item }),
       };
     } else {
+      
       // Query all beers for the specified brewery
       const commandOutput = await ddbDocClient.send(
         new QueryCommand({

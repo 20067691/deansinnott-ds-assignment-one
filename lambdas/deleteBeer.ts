@@ -8,9 +8,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
     console.log("[EVENT]", JSON.stringify(event));
     const parameters = event?.pathParameters;
-    const beerId = parameters?.beerId ? parseInt(parameters.beerId) : undefined;
+    const breweryName = parameters?.breweryName ? parseInt(parameters.breweryName) : undefined;
 
-    if (!beerId) {
+    if (!breweryName) {
       return {
         statusCode: 404,
         headers: {
@@ -24,11 +24,11 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     await ddbDocClient.send(
       new DeleteCommand({
         TableName: process.env.TABLE_NAME, // Ensure TABLE_NAME points to the beers table
-        Key: { id: beerId },
+        Key: { id: breweryName },
       })
     );
 
-    console.log(`Craft beer with ID ${beerId} deleted successfully.`);
+    console.log(`Craft beer with ID ${breweryName} deleted successfully.`);
 
     // Return a success response
     return {
@@ -36,7 +36,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ Message: `Craft beer with ID ${beerId} deleted successfully.` }),
+      body: JSON.stringify({ Message: `Craft beer with ID ${breweryName} deleted successfully.` }),
     };
   } catch (error: any) {
     console.error("Error deleting craft beer:", error);
