@@ -67,19 +67,6 @@ export class RestAPIStack extends Construct {
       },
     });
 
-    // Delete Beer Function 
-    const deleteBeerFn = new lambdanode.NodejsFunction(this, "DeleteBeerFn", {
-      architecture: lambda.Architecture.ARM_64,
-      runtime: lambda.Runtime.NODEJS_16_X,
-      entry: `${__dirname}/../lambdas/deleteBeer.ts`,
-      timeout: cdk.Duration.seconds(10),
-      memorySize: 128,
-      environment: {
-        TABLE_NAME: beersTable.tableName,
-        REGION: "eu-west-1",
-      },
-    });
-
 
     // Update Beer Function
     const updateBeerFn = new lambdanode.NodejsFunction(this, "UpdateBeerFn", {
@@ -137,7 +124,6 @@ export class RestAPIStack extends Construct {
     beersTable.grantReadData(getBeerByIdFn)
     beersTable.grantReadData(getAllBeersFn)
     beersTable.grantReadWriteData(addBeerFn)
-    beersTable.grantReadWriteData(deleteBeerFn)
     beersTable.grantReadWriteData(translateTextFn)
     beersTable.grantReadWriteData(updateBeerFn);
 
@@ -198,10 +184,6 @@ export class RestAPIStack extends Construct {
     }
     );
 
-    beersEndpoint.addMethod(
-      "DELETE",
-      new apig.LambdaIntegration(deleteBeerFn, { proxy: true })
-    );
 
     beersEndpoint.addMethod(
       "PUT",
@@ -219,7 +201,7 @@ export class RestAPIStack extends Construct {
 
     const beerNameEndpoint = beerEndpoint.addResource("{name}");
     const translationEndpoint = beerNameEndpoint.addResource("translate");
-    
+
     translationEndpoint.addMethod(
       "GET",
       new apig.LambdaIntegration(translateTextFn, { proxy: true })
